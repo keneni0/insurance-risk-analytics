@@ -1,0 +1,17 @@
+stages:
+  generate_raw:
+    cmd: python scripts/generate_data.py
+    outs:
+      - data/insurance_data_raw.csv:
+          cache: true
+    deps:
+      - scripts/generate_data.py
+
+  clean_data:
+    cmd: python scripts/clean_data.py
+    deps:
+      - data/insurance_data_raw.csv
+      - scripts/clean_data.py
+    outs:
+      - data/insurance_data_cleaned.csv:
+          cache: true

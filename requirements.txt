@@ -6,3 +6,5 @@ scikit-learn
 jupyter
 flake8
 pytest
+dvc
+python-dotenv
