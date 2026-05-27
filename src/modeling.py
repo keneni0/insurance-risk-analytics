@@ -403,6 +403,9 @@ def calculate_shap_values(
     """
     Calculate SHAP values for model interpretability.
     
+    Automatically selects TreeExplainer for tree-based models 
+    and KernelExplainer for other models.
+    
     Args:
         model_result: Dictionary from train_* function
         X_data: Feature data for SHAP calculation
@@ -415,10 +418,31 @@ def calculate_shap_values(
     preprocessor = model_result['preprocessor']
     X_processed = preprocessor.transform(X_data.iloc[:max_samples])
     
-    # Create SHAP explainer
+    # Create SHAP explainer (auto-detect model type)
     model = model_result['model']
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X_processed)
+    model_type = model_result.get('model_type', '')
+    
+    try:
+        # Try TreeExplainer for tree-based models
+        if 'Forest' in model_type or 'XGBoost' in model_type:
+            explainer = shap.TreeExplainer(model)
+        else:
+            # Use KernelExplainer for other models (Linear Regression, etc.)
+            explainer = shap.KernelExplainer(
+                model.predict, 
+                shap.sample(X_processed, min(50, X_processed.shape[0]))
+            )
+        
+        shap_values = explainer.shap_values(X_processed)
+        
+    except Exception as e:
+        logger.warning(f"SHAP calculation failed: {str(e)}. Using model feature importance instead.")
+        return {
+            'shap_values': None,
+            'feature_importance': model_result.get('feature_importance', np.zeros(X_processed.shape[1])),
+            'expected_value': None,
+            'error': str(e)
+        }
     
     # Calculate mean absolute SHAP for feature importance
     if isinstance(shap_values, list):  # Multi-output
@@ -429,10 +453,10 @@ def calculate_shap_values(
     result = {
         'shap_values': shap_values,
         'feature_importance': feature_importance,
-        'expected_value': explainer.expected_value
+        'expected_value': explainer.expected_value if hasattr(explainer, 'expected_value') else None
     }
     
-    logger.info(f"SHAP values calculated for {X_processed.shape[0]} samples")
+    logger.info(f"SHAP values calculated for {X_processed.shape[0]} samples using {model_type}")
     return result
 
 
