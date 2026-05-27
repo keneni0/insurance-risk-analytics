@@ -164,18 +164,23 @@ def analyze_province_risk(df: pd.DataFrame) -> Dict:
     """
     H₀: There are no risk differences across provinces.
     
-    Test claim frequency differences between two provinces.
+    Test claim severity differences between two provinces using t-test.
+    (Claim frequency is 100% in dataset, so we test severity instead)
     """
     # Get two largest provinces for comparison
     province_counts = df['Province'].value_counts()
     prov_a, prov_b = province_counts.index[:2]
     
-    group_a = df[df['Province'] == prov_a]['HasClaim']
-    group_b = df[df['Province'] == prov_b]['HasClaim']
+    # Filter for policies with claims
+    df_claims = df[df['TotalClaims'] > 0]
     
-    result = chi_squared_test(group_a, group_b, test_name=f"Province Risk: {prov_a} vs {prov_b}")
+    group_a = df_claims[df_claims['Province'] == prov_a]['TotalClaims']
+    group_b = df_claims[df_claims['Province'] == prov_b]['TotalClaims']
+    
+    result = independent_t_test(group_a, group_b, test_name=f"Province Severity: {prov_a} vs {prov_b}")
     result['group_a_label'] = prov_a
     result['group_b_label'] = prov_b
+    result['kpi'] = 'Claim Severity'
     
     return result
 
@@ -184,8 +189,7 @@ def analyze_zipcode_risk(df: pd.DataFrame) -> Dict:
     """
     H₀: There are no risk differences between zip codes.
     
-    For this dataset, we'll use a proxy grouping (e.g., first digit of PostalCode if available,
-    or we'll create synthetic zip code groups for testing purposes).
+    For this dataset, we'll use a proxy grouping and test Claim Severity.
     """
     # If data doesn't have zip code, create a synthetic grouping
     if 'PostalCode' not in df.columns:
@@ -203,12 +207,16 @@ def analyze_zipcode_risk(df: pd.DataFrame) -> Dict:
     
     zip_a, zip_b = zip_counts.index[:2]
     
-    group_a = df[df['ZipGroup'] == zip_a]['HasClaim']
-    group_b = df[df['ZipGroup'] == zip_b]['HasClaim']
+    # Filter for policies with claims
+    df_claims = df[df['TotalClaims'] > 0]
     
-    result = chi_squared_test(group_a, group_b, test_name=f"ZipCode Risk: {zip_a} vs {zip_b}")
+    group_a = df_claims[df_claims['ZipGroup'] == zip_a]['TotalClaims']
+    group_b = df_claims[df_claims['ZipGroup'] == zip_b]['TotalClaims']
+    
+    result = independent_t_test(group_a, group_b, test_name=f"ZipCode Severity: {zip_a} vs {zip_b}")
     result['group_a_label'] = str(zip_a)
     result['group_b_label'] = str(zip_b)
+    result['kpi'] = 'Claim Severity'
     
     return result
 
@@ -247,7 +255,7 @@ def analyze_gender_risk(df: pd.DataFrame) -> Dict:
     """
     H₀: There is no significant risk difference between Women and Men.
     
-    Tests claim frequency differences between genders.
+    Tests claim severity differences between genders using t-test.
     """
     if 'Gender' not in df.columns or len(df['Gender'].unique()) < 2:
         return {
@@ -258,12 +266,16 @@ def analyze_gender_risk(df: pd.DataFrame) -> Dict:
     genders = df['Gender'].unique()[:2]
     gender_a, gender_b = genders[0], genders[1]
     
-    group_a = df[df['Gender'] == gender_a]['HasClaim']
-    group_b = df[df['Gender'] == gender_b]['HasClaim']
+    # Filter for policies with claims
+    df_claims = df[df['TotalClaims'] > 0]
     
-    result = chi_squared_test(group_a, group_b, test_name=f"Gender Risk: {gender_a} vs {gender_b}")
+    group_a = df_claims[df_claims['Gender'] == gender_a]['TotalClaims']
+    group_b = df_claims[df_claims['Gender'] == gender_b]['TotalClaims']
+    
+    result = independent_t_test(group_a, group_b, test_name=f"Gender Severity: {gender_a} vs {gender_b}")
     result['group_a_label'] = f"Gender {gender_a}"
     result['group_b_label'] = f"Gender {gender_b}"
+    result['kpi'] = 'Claim Severity'
     
     return result
 
